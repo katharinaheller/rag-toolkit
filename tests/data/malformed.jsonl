@@ -1,0 +1,6 @@
+{"text": "Valid record one."}
+this is not json at all
+{"text": "Valid record two."}
+{"no_text_key": true, "value": 7}
+{not even close to json
+{"text": "Valid record three after malformed lines."}

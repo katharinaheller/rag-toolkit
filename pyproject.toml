@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag"
+version = "0.1.0"
+description = "Deterministic RAG toolkit with JupyterHub and local LLMs via Ollama"
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = [
+    "docker>=7.1.0",
+    "faiss-cpu>=1.13.2",
+    "fastapi>=0.136.1",
+    "flagembedding>=1.4.0",
+    "ipykernel>=7.2.0",
+    "jupyterlab>=4.5.6",
+    "marko>=2.2.2",
+    "matplotlib>=3.10.9",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
+    "numpy>=2.4.3",
+    "psutil>=7.2.2",
+    "requests>=2.32.5",
+    "scikit-learn>=1.8.0",
+    "sentence-transformers>=5.4.0",
+    "structlog>=25.5.0",
+    "uvicorn>=0.46.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rag*"]
+exclude = ["data*", "notebooks*"]
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[dependency-groups]
+dev = [
+    "fastapi>=0.136.1",
+    "furo>=2025.12.19",
+    "graphviz>=0.21",
+    "hypothesis>=6.151.13",
+    "myst-parser>=5.0.0",
+    "pdoc>=16.0.0",
+    "plantuml>=0.3.0",
+    "py2puml>=0.11.0",
+    "pyfakefs>=6.2.0",
+    "pylint>=4.0.5",
+    "pytest>=9.0.3",
+    "sphinx>=9.1.0",
+    "sphinx-autodoc-typehints>=3.10.2",
+    "sphinxcontrib-mermaid>=2.0.1",
+    "sphinxcontrib-plantuml>=0.31",
+    "uvicorn>=0.46.0",
+]
+docs = [
+    "mkdocstrings[python]>=1.0.4",
+]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+markers = [
+    "slow: long-running tests",
+    "integration: cross-component tests",
+    "e2e: end-to-end pipeline tests",
+    "requires_faiss: requires the faiss package",
+    "requires_torch: requires the torch package",
+    "requires_sentence_transformers: requires sentence-transformers",
+    "requires_flag_embedding: requires FlagEmbedding",
+    "requires_marko: requires the marko package",
+    "requires_psutil: requires psutil",
+]
+filterwarnings = [
+    "ignore:builtin type SwigPyPacked has no __module__ attribute:DeprecationWarning",
+    "ignore:builtin type SwigPyObject has no __module__ attribute:DeprecationWarning",
+    "ignore:builtin type swigvarlink has no __module__ attribute:DeprecationWarning",
+]

@@ -1,0 +1,155 @@
+name: rag-toolkit
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────
+  # notebook-builder
+  #
+  # SOLE PURPOSE: build Dockerfile.notebook and tag the result as
+  # rag-notebook:0.2.0 so DockerSpawner can find it locally.
+  #
+  # Mechanism:
+  #   • Compose builds the image from Dockerfile.notebook.
+  #   • The `image:` field tags the resulting image as rag-notebook:0.2.0.
+  #   • `entrypoint: ["true"]` overrides the Jupyter Docker Stacks
+  #     entrypoint.  The container runs /usr/bin/true and exits 0
+  #     immediately, without triggering any Jupyter startup script.
+  #   • `restart: "no"` prevents any restart attempt.
+  #   • `hub` depends on this service completing successfully, so the
+  #     image is guaranteed to exist before DockerSpawner ever runs.
+  #
+  # Why not `sleep infinity`?
+  #   The Jupyter Docker Stacks ENTRYPOINT runs before the CMD, so
+  #   `sleep infinity` still triggers the full startup sequence.
+  #   Overriding the entrypoint with `["true"]` bypasses it entirely.
+  # ──────────────────────────────────────────────────────────────────────
+  notebook-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.notebook
+    image: rag-notebook:0.2.0
+    entrypoint: ["true"]
+    command: []
+    restart: "no"
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ollama
+  # ──────────────────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:0.6.8
+    container_name: ollama
+    restart: unless-stopped
+
+    environment:
+      OLLAMA_KEEP_ALIVE: 24h
+
+    volumes:
+      - ollama-data:/root/.ollama
+
+    networks:
+      - backend
+
+    healthcheck:
+      test: ["CMD-SHELL", "ollama ps >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ollama-init
+  # ──────────────────────────────────────────────────────────────────────
+  ollama-init:
+    image: ollama/ollama:0.6.8
+    container_name: ollama-init
+    restart: "no"
+
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      # Space-separated list of models to pull on first run.
+      OLLAMA_MODELS: "mistral:latest"
+
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+
+        echo "Waiting for Ollama API..."
+        until ollama list >/dev/null 2>&1; do
+          sleep 2
+        done
+        echo "Ollama API ready"
+
+        for model in $${OLLAMA_MODELS}; do
+          echo "Pulling: $$model"
+          ollama pull "$$model"
+        done
+
+        echo "Installed models:"
+        ollama list
+        echo "Ollama bootstrap complete"
+
+    volumes:
+      - ollama-data:/root/.ollama
+
+    networks:
+      - backend
+
+  # ──────────────────────────────────────────────────────────────────────
+  # hub
+  # ──────────────────────────────────────────────────────────────────────
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rag-hub:4.0
+    container_name: hub
+
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      DOCKER_NOTEBOOK_IMAGE: rag-notebook:0.2.0
+      # Must match networks.backend.name below.
+      DOCKER_NETWORK_NAME: rag-toolkit_backend
+      JUPYTERHUB_ADMIN: admin
+
+    volumes:
+      # Docker socket — required for DockerSpawner and self-inspection.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Config file — mounted read-only so edits take effect on restart.
+      - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
+      # JupyterHub state (cookie secret, SQLite DB).
+      - jupyterhub-data:/data
+      # Staging mount points for shared content.
+      # jupyterhub_config.py reads the host-side source paths from the
+      # Docker inspect output and forwards them to DockerSpawner.
+      - ./notebooks:/hub-mounts/notebooks:ro
+      - ./data:/hub-mounts/data:ro
+
+    depends_on:
+      notebook-builder:
+        condition: service_completed_successfully
+      ollama-init:
+        condition: service_completed_successfully
+
+    networks:
+      - backend
+
+volumes:
+  jupyterhub-data:
+  ollama-data:
+  hf-cache:
+
+networks:
+  backend:
+    # Explicit name prevents Compose from mangling it with a random prefix.
+    # DockerSpawner must reference this exact string.
+    name: rag-toolkit_backend

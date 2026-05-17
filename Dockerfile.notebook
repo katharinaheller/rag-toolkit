@@ -1,0 +1,147 @@
+FROM quay.io/jupyter/base-notebook:python-3.12
+
+USER root
+
+# ── System ──────────────────────────────────────────────────────────────
+RUN pip install --no-cache-dir uv
+
+# ── CPU-only enforcement ─────────────────────────────────────────────────
+ENV CUDA_VISIBLE_DEVICES=""
+ENV TRANSFORMERS_NO_TORCHVISION=1
+
+# ── Python runtime ───────────────────────────────────────────────────────
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# ── Jupyter Docker Stacks startup configuration ──────────────────────────
+#
+# DOCKER_STACKS_JUPYTER_CMD  – run 'jupyter lab', not 'jupyter notebook'
+# JUPYTER_ENABLE_LAB         – legacy flag for older image tags (harmless on new)
+# JUPYTER_DOCKER_STACKS_QUIET – suppress noisy startup banners
+# GRANT_SUDO                 – never grant passwordless sudo to jovyan
+# RESTARTABLE                – restart jupyter if it crashes; keeps container alive
+# NB_UID / NB_GID            – jovyan user IDs (1000 / 100 are the stack defaults)
+# CHOWN_HOME                 – fix ownership of /home/jovyan after named-volume mount
+# CHOWN_HOME_OPTS            – recursive chown
+#
+# !! Do NOT set JUPYTER_ENV_VARS_TO_UNSET="" !!
+#    An empty-string value causes `unset ""` (bad variable name) in bash-based
+#    startup hooks running under set -e or set -u.  Omitting the variable
+#    entirely is the correct way to say "unset nothing".
+ENV DOCKER_STACKS_JUPYTER_CMD=lab
+ENV JUPYTER_ENABLE_LAB=yes
+ENV JUPYTER_DOCKER_STACKS_QUIET=1
+ENV GRANT_SUDO=no
+ENV RESTARTABLE=yes
+ENV NB_UID=1000
+ENV NB_GID=100
+ENV CHOWN_HOME=yes
+ENV CHOWN_HOME_OPTS="-R"
+ENV JUPYTER_ENV_VARS_TO_UNSET="EMPTY"
+
+# ── HuggingFace cache ────────────────────────────────────────────────────
+ENV HF_HOME=/srv/hf-cache
+ENV HUGGINGFACE_HUB_CACHE=/srv/hf-cache
+ENV TRANSFORMERS_CACHE=/srv/hf-cache
+ENV HF_HUB_DISABLE_TELEMETRY=1
+ENV HF_HUB_ENABLE_HF_TRANSFER=1
+ENV TRANSFORMERS_OFFLINE=0
+
+RUN mkdir -p /srv/hf-cache && chmod -R 777 /srv/hf-cache
+
+# ── Python dependencies ──────────────────────────────────────────────────
+WORKDIR /opt/setup
+
+COPY pyproject.toml uv.lock ./
+
+RUN uv export \
+    --no-dev \
+    --no-emit-project \
+    --format requirements-txt \
+    --no-hashes \
+    > requirements.txt
+
+# Strip GPU packages — CPU-only deployment
+RUN grep -v -i -E \
+    "^(torch|torchvision|torchaudio)(==|>=|<=|~=|>|<)|nvidia|cuda|cudnn|nccl|triton|cu1[0-9]" \
+    requirements.txt > clean.txt \
+    && mv clean.txt requirements.txt
+
+# ── PyTorch CPU ─────────────────────────────────────────────────────────
+RUN /opt/conda/bin/pip install \
+    --no-cache-dir \
+    torch==2.7.1+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# ── Project dependencies ─────────────────────────────────────────────────
+RUN /opt/conda/bin/pip install \
+    --no-cache-dir \
+    --no-deps \
+    -r requirements.txt
+
+# ── Package ─────────────────────────────────────────────────────────────
+WORKDIR /opt/shared
+
+COPY rag ./rag
+COPY pyproject.toml ./
+
+RUN /opt/conda/bin/pip install \
+    --no-cache-dir \
+    --no-deps \
+    .
+
+# ── Verify install ───────────────────────────────────────────────────────
+RUN /opt/conda/bin/python -c "\
+import rag; \
+import torch; \
+print(rag.__file__); \
+print(torch.__version__); \
+print(torch.cuda.is_available())"
+
+# ── Assert no GPU libs ───────────────────────────────────────────────────
+RUN /opt/conda/bin/pip freeze | grep -i -E \
+    'nvidia|cuda|cudnn|nccl|triton' \
+    && exit 1 || true
+
+# ── Directory skeleton ───────────────────────────────────────────────────
+#
+# /home/jovyan/workspace   → replaced at runtime by a per-user named volume (rw).
+#                            Docker seeds the volume with this image content on
+#                            first use, so workspace/notebooks and workspace/data
+#                            exist from the start.
+#
+# /home/jovyan/shared      → replaced at runtime by read-only host bind mounts.
+#
+# NEVER create /home/jovyan/workspace/shared.  That path sits under the workspace
+# volume mount point and would be hidden as soon as the volume is attached.  It
+# would also mislead users into thinking shared content lives in their workspace.
+RUN mkdir -p \
+        /home/jovyan/shared/notebooks \
+        /home/jovyan/shared/data \
+        /home/jovyan/workspace/notebooks \
+        /home/jovyan/workspace/data/raw \
+        /home/jovyan/workspace/data/processed \
+    && rm -rf /home/jovyan/work
+
+# ── Startup hook ─────────────────────────────────────────────────────────
+RUN mkdir -p /usr/local/bin/start-notebook.d
+
+COPY init-workspace.sh \
+    /usr/local/bin/start-notebook.d/10-init-workspace.sh
+
+RUN chmod +x \
+    /usr/local/bin/start-notebook.d/10-init-workspace.sh
+
+# ── Permissions ──────────────────────────────────────────────────────────
+RUN chown -R jovyan:users \
+        /opt/shared \
+        /home/jovyan \
+        /srv/hf-cache \
+    && chmod -R a+rX \
+        /opt/shared \
+        /home/jovyan \
+        /srv/hf-cache
+
+WORKDIR /home/jovyan
+
+USER jovyan

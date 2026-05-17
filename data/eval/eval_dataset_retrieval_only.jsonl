@@ -1,0 +1,15 @@
+{"example_id": "r001", "query": "retrieval augmented generation architecture", "expected_answer": "RAG combines a retriever with a generator", "relevant_document_ids": ["doc_rag_001"]}
+{"example_id": "r002", "query": "BM25 ranking function formula parameters", "expected_answer": "BM25 uses term frequency and IDF with k1 and b parameters", "relevant_document_ids": ["doc_rag_002"]}
+{"example_id": "r003", "query": "dense passage retrieval contrastive learning", "expected_answer": "DPR uses BERT encoders trained with contrastive loss", "relevant_document_ids": ["doc_rag_003"]}
+{"example_id": "r004", "query": "FAISS approximate nearest neighbour index types", "expected_answer": "FAISS supports Flat, IVF, and HNSW indexes", "relevant_document_ids": ["doc_rag_004"]}
+{"example_id": "r005", "query": "BGE-M3 multilingual embedding model capabilities", "expected_answer": "BGE-M3 supports dense sparse and multi-vector retrieval", "relevant_document_ids": ["doc_rag_005"]}
+{"example_id": "r006", "query": "text chunking strategies overlap size trade-offs", "expected_answer": "fixed sentence and recursive chunking each have precision recall trade-offs", "relevant_document_ids": ["doc_rag_006"]}
+{"example_id": "r007", "query": "hybrid retrieval reciprocal rank fusion combination", "expected_answer": "RRF combines ranked lists from multiple retrievers", "relevant_document_ids": ["doc_rag_007"]}
+{"example_id": "r008", "query": "Mistral 7B instruction tuning local inference", "expected_answer": "Mistral 7B Instruct can be run locally via Ollama", "relevant_document_ids": ["doc_rag_008"]}
+{"example_id": "r009", "query": "information retrieval evaluation metrics precision recall", "expected_answer": "Precision Recall MRR and NDCG are standard IR metrics", "relevant_document_ids": ["doc_rag_009"]}
+{"example_id": "r010", "query": "Ollama local LLM serving REST API", "expected_answer": "Ollama provides a REST API for local LLM inference", "relevant_document_ids": ["doc_rag_010"]}
+{"example_id": "r011", "query": "knowledge grounding language model external documents", "expected_answer": "RAG grounds generation in a live document corpus", "relevant_document_ids": ["doc_rag_001"]}
+{"example_id": "r012", "query": "sparse keyword search lexical matching", "expected_answer": "BM25 is the standard sparse retrieval method", "relevant_document_ids": ["doc_rag_002"]}
+{"example_id": "r013", "query": "semantic vector similarity dense embeddings", "expected_answer": "DPR uses dense embeddings for semantic similarity", "relevant_document_ids": ["doc_rag_003"]}
+{"example_id": "r014", "query": "vector database index HNSW graph structure", "expected_answer": "HNSW is a graph-based index with O(log n) query time", "relevant_document_ids": ["doc_rag_004"]}
+{"example_id": "r015", "query": "quantised LLM model inference memory requirements", "expected_answer": "Q4_K_M quantisation reduces Mistral 7B to 4.1 GB", "relevant_document_ids": ["doc_rag_008"]}

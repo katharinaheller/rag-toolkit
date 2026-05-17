@@ -1,0 +1,4 @@
+This is a plain text sample document with multiple sentences.
+It contains enough material for chunking tests to produce more than one chunk.
+The retrieval system should be able to surface relevant pieces of this text
+when asked questions about its content. Determinism is critical in evaluation.

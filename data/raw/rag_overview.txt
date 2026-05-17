@@ -1,0 +1,25 @@
+Retrieval-Augmented Generation – ein Überblick
+
+Ich erinnere mich noch gut an meinen ersten Kontakt mit großen Sprachmodellen. Man gibt eine Frage ein, bekommt eine flüssig formulierte Antwort – und stellt erst Minuten später fest, dass die Hälfte davon schlicht erfunden war. Dieses Phänomen hat einen Namen: Halluzination. Und es ist das zentrale Problem, mit dem sich das Feld der LLMs seit Jahren herumschlägt.
+
+Ein Large Language Model lernt im Grunde aus riesigen Textmengen, wie Sprache funktioniert. Es lernt Muster, Zusammenhänge, Wahrscheinlichkeiten. Aber es lernt nicht, was aktuell wahr ist. Der Trainingsdatensatz hat ein Enddatum – danach weiß das Modell nichts mehr. Fragt man ein Modell also nach den Ergebnissen der letzten Bundestagswahl, oder nach dem neuesten Paper zu einem bestimmten Thema, ist das Modell aufgeschmissen. Es improvisiert. Manchmal passend, oft nicht.
+
+Das zweite große Problem ist das fehlende Kontextwissen. Ein Unternehmen möchte vielleicht, dass sein internes KI-System Fragen zu firmeneigenen Dokumenten beantwortet – zu Handbüchern, Prozessbeschreibungen, internen Wikis. Das Modell hat davon natürlich keine Ahnung. Man könnte alles in den Prompt stecken, aber spätestens beim dritten Dokument stößt man an die Kontextfenster-Grenze.
+
+Genau hier setzt Retrieval-Augmented Generation an. Die Idee ist eigentlich simpel, fast schon offensichtlich, wenn man erst mal drüber nachdenkt: Bevor das Modell eine Antwort generiert, holt man sich die relevantesten Informationen aus einer externen Wissensbasis und gibt sie dem Modell als Kontext mit. Retrieve first, then generate.
+
+Stell dir vor, du machst eine mündliche Prüfung, aber du darfst vorher in deinen Notizen nachschlagen. Das ist ungefähr das Prinzip. Das Modell "schummelt" erlaubtermaßen – es bekommt die passenden Informationshäppchen gereicht und muss sie nur noch sinnvoll zu einer Antwort zusammensetzen.
+
+Konkret sieht das so aus: Man hat einen Dokumentenbestand – PDFs, Webseiten, Markdown-Dateien, was auch immer. Diese werden zunächst in kleinere Abschnitte (Chunks) aufgeteilt. Jeder Chunk wird dann durch ein Embedding-Modell in einen Vektor umgewandelt – also in eine hochdimensionale Zahl, die die semantische Bedeutung des Textes repräsentiert. Diese Vektoren werden in einer Vektordatenbank gespeichert.
+
+Kommt nun eine Anfrage vom Nutzer, passiert dasselbe mit der Anfrage: Sie wird ebenfalls in einen Vektor umgewandelt. Dann sucht man in der Datenbank nach den Vektoren, die diesem Anfrage-Vektor am ähnlichsten sind – das sind die semantisch relevantesten Chunks. Diese werden dem LLM als Kontext mitgegeben, zusammen mit der ursprünglichen Frage. Und das Modell generiert dann seine Antwort.
+
+Ein kleines Beispiel: Angenommen, ich habe eine Wissensbasis mit internen Unternehmensrichtlinien. Die Frage lautet: „Wie viele Urlaubstage habe ich im ersten Beschäftigungsjahr?" Ohne RAG würde das LLM raten oder halluzinieren. Mit RAG findet das System den entsprechenden Abschnitt aus dem Richtliniendokument, gibt ihn an das Modell weiter, und das Modell formuliert: „Laut Unternehmensrichtlinie Abschnitt 4.2 stehen Ihnen im ersten Beschäftigungsjahr 20 Urlaubstage zu." Das ist die Antwort, die man sich wünscht.
+
+Was mich an RAG am meisten überzeugt hat, ist die Modularität. Man trennt das Wissen vom Modell. Das Modell muss nicht neu trainiert werden, wenn sich die Wissensbasis ändert. Man tauscht einfach die Dokumente aus. Das ist ein riesiger Vorteil gegenüber Fine-Tuning, das teuer, zeitaufwändig und weniger flexibel ist.
+
+Natürlich ist auch RAG kein Allheilmittel. Die Qualität der Antworten hängt stark davon ab, wie gut das Retrieval funktioniert. Wenn die falschen Chunks geholt werden, bekommt das Modell schlechten Kontext – und erzeugt schlechte Antworten. Garbage in, garbage out, wie immer. Auch das Chunking ist ein unterschätztes Problem: Zu kleine Chunks verlieren Kontext, zu große sind unhandlich und rauschen durch das Kontextfenster.
+
+Trotzdem: RAG hat sich als einer der wichtigsten Bausteine moderner, anwendbarer KI-Systeme etabliert. Fast jedes ernsthafte LLM-basierte Produkt, das ich kenne, verwendet irgendeine Form von Retrieval. Die Grundidee ist robust, die Implementierung ist vergleichsweise straightforward, und die Ergebnisse sind in der Praxis beeindruckend besser als reine LLM-Antworten.
+
+Die Zukunft wird wahrscheinlich komplexere Varianten bringen – agentenbasierte RAG-Systeme, iteratives Retrieval, Multi-Hop-Reasoning über mehrere Retrievals hinweg. Aber der Kern bleibt derselbe: Hole erst das Wissen, dann erzeuge die Antwort.

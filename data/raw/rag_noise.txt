@@ -1,0 +1,104 @@
+RAG systeme - eine kurze überischt
+=====================================
+
+
+was ist rag eigentlich?
+
+RAG steht für Retrieval Augmented Generation. Das ist eine technik bei der ein Spachmodell zusätzlichen Kontext bekommt bevor es antwortet.
+
+
+
+Die idee dahinter: statt das modell mit allem wissen zu trainieren, lässt man es einfach in dokumenten nachschlagen. Wie bei einer prüfung mit spickzettel, aber erlaubt.
+
+Embedding sind vektoren.
+
+vektoren repräsentieren semantischen Inhalt von texten.
+vektoren ermöglichen ähnlichkeitssuche
+Vektoren werden in vektordatenbanken gespeichert.
+
+    Chunking ist wichtig.
+Chunking aufteilen von Texten.
+        chunks sollten nicht zu klein sein.
+    chunks sollten nicht zu groß sein.
+
+Also irgendwas dazwischen.
+
+
+LLMs haben probleme.
+
+ - Halluzinationen sind ein Problem.
+ - Knowledge cutoff ist ein problem.
+- fehlender domänenkontext.
+-- kein zugriff auf interne Daten ohne RAG
+
+
+
+
+Retrieval Augmented Generation (RAG) ist eine Methode bei der relevante Dokumente vor der Antwortgenerierung abgerufen werden. Man kombiniert Informationsabruf mit Textgenerierung.
+
+
+
+RAG steht für Retrieval Augmented Generation. Das ist eine technik bei der ein Spachmodell zusätzlichen Kontext bekommt bevor es antwortet.
+
+
+
+
+Vektordatenbanken:
+Chroma
+Qdrant
+Pinecone
+Weaviate
+FAISS (das ist eigentlich keine Datenbank aber egal)
+
+
+Embedding-Modelle die ich kenne:
+- text-embedding-3-small (openAI)
+- MiniLM (sentence transformers)
+- e5 (microsoft glaube ich)
+- jina-embeddings (Jina KI)
+
+
+Bei der Ähnlichkeitssuche benutzt man oft Kosinus-Ähnlichkeit. Das misst den winkel zwischen zwei vektoren. Wenn der winkel klein ist sind die Vektoren ähnlich also die texte auch.
+
+Bei der Ähnlichkeitssuche benutzt man oft Kosinus-Ähnlichkeit. Das misst den winkel zwischen zwei vektoren. Wenn der winkel klein ist sind die Vektoren ähnlich also die texte auch.
+
+
+Fine-Tuning vs RAG:
+
+Fine-Tuning ist teuer und dauert lang. Dafür lernt das model neues verhalten oder domänenwissen fest.
+RAG ist flexibler und billiger. Das wissen kommt zur laufzeit rein.
+Beides zusammen geht natürlcih auch.
+
+
+
+Prompt-Engineering spielt auch eine Rolle.
+wenn man dem LLM den Kontext gut aufbereitet bekommt man bessere Antworten.
+System-Prompt, Kontext-Blöcke, User-Query – das alles gehört dazu.
+
+
+Evaluation ist schwierig.
+
+wie misst man ob eine RAG-pipeline gut ist?
+- retrieval recall: wurden die richtigen chunks gefunden?
+- answer faithfulness: stimmt die Anwort mit dem kontext überein?
+- answer relevance: beantwortet die Anwort die eigentliche Frage?
+
+RAGAS ist ein Framework dafür. TruLens auch.
+
+
+
+     Noch ein paar Sachen die ich nicht vergessen wollte:
+
+HyDE = Hypothetical Document Embeddings (cooles konzept)
+Multi-Query Retrieval = mehrere query-varianten parallel
+Re-Ranking = nach erstem retrieval nochmal sortieren mit cross-encoder
+
+
+
+Das wars erstmal. Mehr dazu vielleicht später.
+
+
+TODO: abschnitt über Graphen-basiertes RAG (GraphRAG) schreiben
+TODO: Beispiele für schlechtes chunking einbauen
+TODO: Quellen ergänzen
+
