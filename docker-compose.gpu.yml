@@ -1,0 +1,98 @@
+name: rag-toolkit
+
+# Optional GPU profile for the RAG Toolkit.
+#
+# GPU start (requires NVIDIA GPU + nvidia-container-toolkit on host):
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#
+# `.env` (loaded automatically by compose) supplies HF_TOKEN, which is
+# forwarded into the GPU notebook image and the benchmark-runner so gated
+# HuggingFace repos (e.g. google/embeddinggemma-300m) download without 401s.
+# Nothing in the base docker-compose.yml is silently mutated.
+
+services:
+
+  notebook-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.notebook.gpu
+    image: rag-notebook-gpu:0.2.0
+
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  hub:
+    environment:
+      DOCKER_NOTEBOOK_IMAGE: rag-notebook-gpu:0.2.0
+      DOCKER_NETWORK_NAME: rag-toolkit_backend
+      JUPYTERHUB_ADMIN: ${JUPYTERHUB_ADMIN:-admin}
+      # Re-stated here so the GPU profile's merged hub env keeps the token.
+      HF_TOKEN: ${HF_TOKEN:-}
+      HUGGINGFACE_HUB_TOKEN: ${HF_TOKEN:-}
+
+  # ──────────────────────────────────────────────────────────────────────
+  # benchmark-runner  (operator-only, GPU)
+  #
+  # Same GPU image/runtime as student notebooks, never spawned by the Hub,
+  # stable name, experiments read-only, outputs writable to the host. The HF
+  # token is forwarded from .env so gated embedding models load here too.
+  # ──────────────────────────────────────────────────────────────────────
+  benchmark-runner:
+    image: rag-notebook-gpu:0.2.0
+    container_name: rag-benchmark-runner
+    pull_policy: never
+    restart: "no"
+
+    entrypoint: ["sleep", "infinity"]
+    command: []
+
+    depends_on:
+      notebook-builder:
+        condition: service_completed_successfully
+
+    environment:
+      PYTHONPATH: /opt
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      EXPERIMENTS_OUTPUT_ROOT: /opt/experiment-outputs
+      EXPERIMENTS_CACHE_ROOT: /opt/experiment-outputs/indexes
+      EXPERIMENTS_DATA_ROOT: /opt/data/documents
+      EXPERIMENTS_ENABLE_GPU_BENCHMARKS: "1"
+      EXPERIMENTS_ENABLE_GENERATION: "0"
+      EXPERIMENTS_OLLAMA_URL: http://ollama:11434
+      EXPERIMENTS_OLLAMA_MODEL: mistral
+      EXPERIMENTS_GPU_INDEX: "0"
+      EXPERIMENTS_LOG_LEVEL: INFO
+      HF_HOME: /srv/hf-cache
+      HUGGINGFACE_HUB_CACHE: /srv/hf-cache
+      TRANSFORMERS_CACHE: /srv/hf-cache
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      MPLCONFIGDIR: /tmp/mpl
+      # HuggingFace authentication, interpolated from .env at runtime.
+      # Both names set from the single HF_TOKEN so every library finds it.
+      HF_TOKEN: ${HF_TOKEN:-}
+      HUGGINGFACE_HUB_TOKEN: ${HF_TOKEN:-}
+
+    volumes:
+      - ./experiments:/opt/experiments:ro
+      - ./data:/opt/data:ro
+      - ./experiment-outputs:/opt/experiment-outputs:rw
+      - ./ops:/opt/ops:ro
+      - hf-cache:/srv/hf-cache
+
+    networks:
+      - backend
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

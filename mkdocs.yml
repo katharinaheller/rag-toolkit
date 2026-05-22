@@ -29,6 +29,8 @@ theme:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Deployment: deployment.md
+  - GPU experiments (opt-in): gpu-experiments.md
   - API reference:
       - Overview: api.md
       - Ingestion: api/ingestion.md

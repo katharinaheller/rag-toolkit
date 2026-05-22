@@ -1,0 +1,179 @@
+FROM quay.io/jupyter/base-notebook:python-3.12
+
+USER root
+
+# ── System ──────────────────────────────────────────────────────────────
+RUN pip install --no-cache-dir uv
+
+# ── Python runtime ───────────────────────────────────────────────────────
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# ── Jupyter Docker Stacks startup configuration ──────────────────────────
+# Identical to the CPU image so spawn behaviour and per-user mounts match.
+ENV DOCKER_STACKS_JUPYTER_CMD=lab
+ENV JUPYTER_ENABLE_LAB=yes
+ENV JUPYTER_DOCKER_STACKS_QUIET=1
+ENV GRANT_SUDO=no
+ENV RESTARTABLE=yes
+ENV NB_UID=1000
+ENV NB_GID=100
+ENV CHOWN_HOME=yes
+ENV CHOWN_HOME_OPTS="-R"
+ENV JUPYTER_ENV_VARS_TO_UNSET="EMPTY"
+
+# ── HuggingFace cache ────────────────────────────────────────────────────
+ENV HF_HOME=/srv/hf-cache
+ENV HUGGINGFACE_HUB_CACHE=/srv/hf-cache
+ENV TRANSFORMERS_CACHE=/srv/hf-cache
+ENV HF_HUB_DISABLE_TELEMETRY=1
+ENV HF_HUB_ENABLE_HF_TRANSFER=1
+ENV TRANSFORMERS_OFFLINE=0
+
+RUN mkdir -p /srv/hf-cache && chmod -R 777 /srv/hf-cache
+
+# ── Python dependencies ──────────────────────────────────────────────────
+WORKDIR /opt/setup
+
+COPY pyproject.toml uv.lock ./
+
+RUN uv export \
+    --no-dev \
+    --no-emit-project \
+    --format requirements-txt \
+    --no-hashes \
+    > requirements.txt
+
+# Strip torch lines from the lock so we can install a CUDA build below.
+# Unlike the CPU image we do NOT strip nvidia/cuda/cudnn — they are wanted.
+RUN grep -v -i -E \
+    "^(torch|torchvision|torchaudio)(==|>=|<=|~=|>|<)" \
+    requirements.txt > clean.txt \
+    && mv clean.txt requirements.txt
+
+# ── PyTorch CUDA 12.8 ────────────────────────────────────────────────────
+# cu128 is required for NVIDIA Blackwell GPUs (RTX 50-series, sm_120).
+# Older index URLs (cu121, cu124) ship kernels only up to sm_90 and will
+# fail at runtime with "no kernel image is available for execution on the
+# device" on Blackwell cards.
+RUN /opt/conda/bin/pip install \
+    --no-cache-dir \
+    torch==2.7.1 \
+    --index-url https://download.pytorch.org/whl/cu128
+
+# ── cuSPARSELt runtime dependency ────────────────────────────────────────
+# torch 2.7.1+cu128 dynamically links libcusparseLt.so.0 at import time but
+# does not declare nvidia-cusparselt-cu12 as a hard dependency in its wheel
+# metadata. Without this explicit install the verify step below fails with
+# "ImportError: libcusparseLt.so.0: cannot open shared object file".
+RUN /opt/conda/bin/pip install \
+    --no-cache-dir \
+    "nvidia-cusparselt-cu12>=0.6.2"
+
+# ── GPU telemetry ────────────────────────────────────────────────────────
+# nvidia-ml-py is the official binding; `import pynvml` works against it.
+RUN /opt/conda/bin/pip install \
+    --no-cache-dir \
+    "nvidia-ml-py>=12.0.0"
+
+# ── Make pip-bundled NVIDIA libs visible to the dynamic linker ───────────
+# Wheels like nvidia-cusparselt-cu12 install their .so files into
+# site-packages/nvidia/<name>/lib/, which is not on the default ld.so
+# search path. Kept as the first attempt; the second (more aggressive)
+# fix below is what actually makes libcusparseLt findable. Do not remove
+# this step — keeping it identical preserves the build cache for the
+# expensive pip install -r requirements.txt step that follows.
+RUN set -eux \
+    && ls -la /opt/conda/lib/python3.12/site-packages/nvidia \
+    && find /opt/conda/lib/python3.12/site-packages/nvidia \
+        -mindepth 2 -maxdepth 2 -type d -name lib \
+        | tee /etc/ld.so.conf.d/nvidia-pip-libs.conf \
+    && ldconfig
+
+# ── Project dependencies ─────────────────────────────────────────────────
+RUN /opt/conda/bin/pip install \
+    --no-cache-dir \
+    --no-deps \
+    -r requirements.txt
+
+# ── libcusparseLt: symlink into a real linker path + LD_LIBRARY_PATH ─────
+# The earlier ldconfig-only approach turned out to be insufficient (likely
+# because nothing in /etc/ld.so.conf.d propagated through the buildkit
+# overlay as expected). This step is bulletproof: it symlinks the .so
+# files into /usr/lib/x86_64-linux-gnu (which is always in the default
+# ld.so search path), runs ldconfig, and then loads the library via
+# ctypes. If ctypes.CDLL fails, the build aborts here instead of in the
+# verify step further down — giving us a clear, isolated failure point.
+RUN set -eux \
+    && CUSPARSELT_DIR=/opt/conda/lib/python3.12/site-packages/nvidia/cusparselt/lib \
+    && ls -la "$CUSPARSELT_DIR/" \
+    && for f in "$CUSPARSELT_DIR"/libcusparseLt.so*; do \
+           bn=$(basename "$f"); \
+           ln -sfv "$f" "/usr/lib/x86_64-linux-gnu/$bn"; \
+       done \
+    && ldconfig \
+    && /opt/conda/bin/python -c "\
+import ctypes; \
+lib = ctypes.CDLL('libcusparseLt.so.0'); \
+print('libcusparseLt.so.0 dlopen OK ->', lib)"
+
+# LD_LIBRARY_PATH as a second safety net for the runtime container, so
+# the linker can find the library even outside of build-time ldconfig.
+ENV LD_LIBRARY_PATH="/opt/conda/lib/python3.12/site-packages/nvidia/cusparselt/lib:/usr/lib/x86_64-linux-gnu"
+
+# ── Package ─────────────────────────────────────────────────────────────
+WORKDIR /opt/shared
+
+COPY rag ./rag
+COPY pyproject.toml ./
+
+RUN /opt/conda/bin/pip install \
+    --no-cache-dir \
+    --no-deps \
+    .
+
+# ── Verify install ───────────────────────────────────────────────────────
+# torch.cuda.is_available() is False at build time (no GPU passthrough);
+# the assertion is therefore only that imports succeed. By this point the
+# ctypes test above has already proven libcusparseLt is loadable, so this
+# step should always succeed.
+RUN /opt/conda/bin/python -c "\
+import rag; \
+import torch; \
+import pynvml; \
+print('rag from', rag.__file__); \
+print('torch', torch.__version__); \
+print('pynvml ok')"
+
+# ── Directory skeleton ───────────────────────────────────────────────────
+# Mirrors the CPU image so spawned containers behave identically.
+RUN mkdir -p \
+        /home/jovyan/shared/notebooks \
+        /home/jovyan/shared/data \
+        /home/jovyan/workspace/notebooks \
+        /home/jovyan/workspace/data/raw \
+        /home/jovyan/workspace/data/processed \
+    && rm -rf /home/jovyan/work
+
+# ── Startup hook ─────────────────────────────────────────────────────────
+RUN mkdir -p /usr/local/bin/start-notebook.d
+
+COPY init-workspace.sh \
+    /usr/local/bin/start-notebook.d/10-init-workspace.sh
+
+RUN chmod +x \
+    /usr/local/bin/start-notebook.d/10-init-workspace.sh
+
+# ── Permissions ──────────────────────────────────────────────────────────
+RUN chown -R jovyan:users \
+        /opt/shared \
+        /home/jovyan \
+        /srv/hf-cache \
+    && chmod -R a+rX \
+        /opt/shared \
+        /home/jovyan \
+        /srv/hf-cache
+
+WORKDIR /home/jovyan
+
+USER jovyan

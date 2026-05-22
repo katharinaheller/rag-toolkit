@@ -1,18 +1,47 @@
-.PHONY: install docs docs-serve docs-build test clean
+# RAG Toolkit — operator Makefile (GPU benchmarking + HF auth)
+#
+# Usage:
+#   make gpu-up      # build images + start stack incl. benchmark-runner (GPU)
+#   make hf-verify   # verify the HuggingFace token authenticates
+#   make smoke       # verify the runner sees the GPU
+#   make bench       # run full GPU experiment + benchmark pipeline
+#   make report      # rebuild REPORT.md + AGGREGATE_REPORT.md only
+#   make shell       # interactive shell inside the runner
+#   make logs        # follow stack logs
+#   make ps          # show stack status
+#   make down        # stop + remove the stack
+#   make gpu-bench   # gpu-up + hf-verify + smoke + bench in one go
 
-install:
-	uv sync
+COMPOSE := docker compose -f docker-compose.yml -f docker-compose.gpu.yml
+RUNNER  := rag-benchmark-runner
 
-docs: docs-serve
+.PHONY: gpu-up hf-verify smoke bench report shell logs ps down gpu-bench
 
-docs-serve:
-	uv run mkdocs serve
+gpu-up:
+	$(COMPOSE) up -d --build
 
-docs-build:
-	uv run mkdocs build
+hf-verify:
+	docker exec -i $(RUNNER) bash /opt/ops/hf-verify.sh
 
-test:
-	uv run pytest
+smoke:
+	docker exec -i $(RUNNER) bash /opt/ops/gpu-smoke.sh
 
-clean:
-	rm -rf site/ .pytest_cache/ .ruff_cache/ **/__pycache__
+bench:
+	docker exec -i $(RUNNER) bash /opt/ops/run-benchmarks.sh
+
+report:
+	docker exec -i $(RUNNER) bash /opt/ops/build-report.sh
+
+shell:
+	docker exec -it $(RUNNER) bash
+
+logs:
+	$(COMPOSE) logs -f
+
+ps:
+	$(COMPOSE) ps
+
+down:
+	$(COMPOSE) down
+
+gpu-bench: gpu-up hf-verify smoke bench

@@ -130,6 +130,19 @@ STABILITY_REPEATS: int = 5
 BENCH_WARMUP: int = 2
 BENCH_MEASURED: int = 25
 
+# ── GPU-aware benchmark sweeps (suites s16-s21) ─────────────────────────────
+# Batch sizes swept by the embedding benchmark (CPU vs GPU throughput scaling).
+BENCH_BATCH_SIZES: List[int] = [1, 4, 8, 16, 32, 64]
+
+# Concurrency levels swept by the retrieval concurrency benchmark.
+BENCH_CONCURRENCY_LEVELS: List[int] = [1, 2, 4, 8, 16]
+
+# Number of warm steady-state iterations in the cold-vs-warm benchmark.
+COLD_WARM_ITERATIONS: int = 10
+
+# Repeats for the cold-vs-warm benchmark (each repeat rebuilds the model).
+COLD_WARM_REPEATS: int = 3
+
 
 @dataclass(frozen=True)
 class Matrix:

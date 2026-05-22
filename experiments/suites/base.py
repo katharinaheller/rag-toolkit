@@ -5,14 +5,20 @@ The base class exposes per-suite output directories and a shared context
 object containing all corpora, queries, generator, and run_id.
 
 Suites are intentionally narrow: each answers exactly one research question.
+
+After ``execute`` finishes, the full summary dict is persisted to
+``outputs/aggregated/<run_id>/<suite_key>/_suite_summary.json`` so the
+standalone ``report_builder.py`` can rebuild the Markdown report from disk
+without re-running any experiments.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -32,6 +38,20 @@ class ExperimentContext:
     queries: Dict[str, List[SyntheticQuery]]         # corpus_name -> queries
     generator: BuiltGenerator
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+def _json_safe(obj: Any) -> Any:
+    if is_dataclass(obj):
+        return _json_safe(asdict(obj))
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    if isinstance(obj, set):
+        return sorted(_json_safe(v) for v in obj)
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    return str(obj)
 
 
 class Suite(ABC):
@@ -95,7 +115,7 @@ class Suite(ABC):
             self.logger.exception(
                 "Suite %s failed after %.2fs: %s", self.key, elapsed, exc
             )
-            return {
+            summary = {
                 "key": self.key,
                 "description": self.description,
                 "status": "failed",
@@ -105,10 +125,25 @@ class Suite(ABC):
                 "tables": [],
                 "findings": [f"Suite {self.key} failed: {exc}"],
             }
+            self._persist_summary(summary)
+            return summary
         elapsed = (time.perf_counter() - (self._t0 or 0.0))
         summary.setdefault("key", self.key)
         summary.setdefault("description", self.description)
         summary.setdefault("status", "ok")
         summary["duration_s"] = elapsed
         self.logger.info("Suite %s finished in %.2fs", self.key, elapsed)
+        self._persist_summary(summary)
         return summary
+
+    # ── Persistence ──────────────────────────────────────────────────────────
+    def _persist_summary(self, summary: Dict[str, Any]) -> None:
+        """Write the suite summary JSON so reports can be rebuilt offline."""
+        try:
+            path = self.agg_dir / "_suite_summary.json"
+            path.write_text(
+                json.dumps(_json_safe(summary), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except Exception as exc:
+            self.logger.warning("Failed to persist suite summary: %s", exc)

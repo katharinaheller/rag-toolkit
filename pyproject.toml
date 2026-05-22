@@ -59,6 +59,11 @@ dev = [
 docs = [
     "mkdocstrings[python]>=1.0.4",
 ]
+# Optional GPU telemetry. Not installed by default; only used in the opt-in
+# GPU profile (docker-compose.gpu.yml + Dockerfile.notebook.gpu).
+gpu = [
+    "nvidia-ml-py>=12.0.0",
+]
 
 [tool.pytest.ini_options]
 minversion = "9.0"
@@ -78,6 +83,7 @@ markers = [
     "requires_flag_embedding: requires FlagEmbedding",
     "requires_marko: requires the marko package",
     "requires_psutil: requires psutil",
+    "requires_pynvml: requires pynvml / nvidia-ml-py",
 ]
 filterwarnings = [
     "ignore:builtin type SwigPyPacked has no __module__ attribute:DeprecationWarning",

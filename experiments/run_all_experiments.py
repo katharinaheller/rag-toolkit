@@ -322,6 +322,16 @@ def run(argv: Optional[List[str]] = None) -> int:
     logger.info("Manifest:  %s", manifest_path)
     if dashboard_path:
         logger.info("Dashboard: %s", dashboard_path)
+
+    # Cross-run aggregated report (compares this run with all previous ones).
+    try:
+        from experiments.reports import build_aggregate_report
+        aggregate_path = build_aggregate_report()
+        if aggregate_path:
+            logger.info("Aggregate: %s", aggregate_path)
+    except Exception as exc:
+        logger.warning("Aggregate report failed: %s", exc)
+
     logger.info("=" * 70)
 
     # Exit code: 1 if every suite failed, else 0.

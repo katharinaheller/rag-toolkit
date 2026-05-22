@@ -30,6 +30,11 @@ def _env_int(name: str, default: int) -> int:
     return int(raw) if raw else default
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    return float(raw) if raw else default
+
+
 # Repository root is the parent of this package's parent.
 _PKG_DIR = Path(__file__).resolve().parent.parent
 _REPO_ROOT = _PKG_DIR.parent
@@ -82,6 +87,39 @@ class Settings:
     # Logging.
     log_level: str = field(default_factory=lambda: os.environ.get(
         "EXPERIMENTS_LOG_LEVEL", "INFO"
+    ))
+
+    # ── GPU / benchmark settings ────────────────────────────────────────────
+    # Master switch for the GPU-aware benchmark suites (s16-s21). When True the
+    # suites still run on CPU-only hosts; the GPU variants merely record a
+    # "skipped: CUDA unavailable" outcome. Default True so the benchmarks are
+    # part of the standard pipeline.
+    enable_gpu_benchmarks: bool = field(default_factory=lambda: _env_bool(
+        "EXPERIMENTS_ENABLE_GPU_BENCHMARKS", True
+    ))
+
+    # GPU device index used by the resource monitor and benchmarks.
+    gpu_index: int = field(default_factory=lambda: _env_int(
+        "EXPERIMENTS_GPU_INDEX", 0
+    ))
+
+    # Resource timeline sampling interval (seconds).
+    resource_interval_s: float = field(default_factory=lambda: _env_float(
+        "EXPERIMENTS_RESOURCE_INTERVAL", 0.25
+    ))
+
+    # Benchmark iteration counts (kept small so the full pipeline finishes
+    # quickly on a CPU-only laptop; override via env for serious runs).
+    benchmark_warmup: int = field(default_factory=lambda: _env_int(
+        "EXPERIMENTS_BENCH_WARMUP", 1
+    ))
+    benchmark_measured: int = field(default_factory=lambda: _env_int(
+        "EXPERIMENTS_BENCH_MEASURED", 3
+    ))
+
+    # How many corpus documents to feed embedding benchmarks (capped per corpus).
+    benchmark_doc_sample: int = field(default_factory=lambda: _env_int(
+        "EXPERIMENTS_BENCH_DOC_SAMPLE", 64
     ))
 
 

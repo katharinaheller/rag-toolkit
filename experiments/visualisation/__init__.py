@@ -18,12 +18,30 @@ from experiments.visualisation.plots import (
     plot_stability_bars,
     plot_topk_sensitivity,
 )
+from experiments.visualisation.resource_plots import (
+    DEVICE_PALETTE,
+    colour_for_device,
+    plot_gpu_utilisation_heatmap,
+    plot_resource_timeline,
+    plot_speedup_bars,
+    plot_vram_vs_batchsize,
+)
+from experiments.visualisation.benchmark_plots import (
+    plot_cold_vs_warm,
+    plot_concurrency_scaling,
+    plot_cpu_gpu_comparison,
+    plot_latency_distribution,
+    plot_throughput_vs_batchsize,
+    plot_throughput_vs_latency,
+)
 
 __all__ = [
     "QUERY_TYPE_PALETTE",
     "RETRIEVER_PALETTE",
+    "DEVICE_PALETTE",
     "colour_for_query_type",
     "colour_for_retriever",
+    "colour_for_device",
     "plot_box_by_group",
     "plot_dashboard",
     "plot_heatmap",
@@ -34,6 +52,16 @@ __all__ = [
     "plot_retriever_corpus_scaling",
     "plot_stability_bars",
     "plot_topk_sensitivity",
+    "plot_gpu_utilisation_heatmap",
+    "plot_resource_timeline",
+    "plot_speedup_bars",
+    "plot_vram_vs_batchsize",
+    "plot_cold_vs_warm",
+    "plot_concurrency_scaling",
+    "plot_cpu_gpu_comparison",
+    "plot_latency_distribution",
+    "plot_throughput_vs_batchsize",
+    "plot_throughput_vs_latency",
     "save_fig",
     "setup_matplotlib",
 ]

@@ -337,7 +337,7 @@ def _parse_args() -> argparse.Namespace:
                    choices=["png", "pdf", "svg"])
     p.add_argument("--style",         type=str,  default="default")
     p.add_argument("--no-show",       action="store_true",
-                   help="Suppress plt.show() — use in headless / HPC environments")
+                   help="Suppress plt.show() — use in headless / CI environments")
     return p.parse_args()
 
 
