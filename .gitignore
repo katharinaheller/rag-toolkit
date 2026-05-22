@@ -88,3 +88,5 @@ CHANGES.md
 # ── Optional local experiment files ──────────────────────────────────────
 experiments.zip
 rag.zip
+.gitignore
+notebooks_export.py
