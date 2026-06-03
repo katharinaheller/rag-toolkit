@@ -29,8 +29,12 @@ theme:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
-  - Deployment: deployment.md
-  - GPU experiments (opt-in): gpu-experiments.md
+  - Experiments:
+      - Running experiments: experiments.md
+      - Command line interface: cli.md
+  - Deployment:
+      - JupyterHub platform: deployment.md
+      - GPU experiments (opt-in): gpu-experiments.md
   - API reference:
       - Overview: api.md
       - Ingestion: api/ingestion.md

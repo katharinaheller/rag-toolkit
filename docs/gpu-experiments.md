@@ -79,7 +79,7 @@ changes that.
 ## Running the GPU benchmark notebook
 
 Inside JupyterLab, open
-`shared/notebooks/06_gpu_optional_benchmark.ipynb`. The notebook is designed
+`shared/notebooks/06_rag_gpu_pipeline.ipynb`. The notebook is designed
 to be safe to run regardless of the active stack: on the CPU stack it
 reports "no GPU available" and skips the GPU half cleanly.
 
@@ -137,5 +137,5 @@ not a failure mode; it is the documented behaviour.
 This is **not** an HPC deployment path. The toolkit's `DockerSpawner` setup is
 single-host. Running on an actual HPC cluster (Slurm + Apptainer,
 Kubernetes + `KubeSpawner`, etc.) is recorded as future work in the
-[Performance Tuning Guide](../rag/evaluation/documentation/performance_tuning.md#beyond-a-single-host-outlook),
-not as a supported configuration.
+[Deployment guide](deployment.md#out-of-scope), not as a supported
+configuration.

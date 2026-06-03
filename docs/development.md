@@ -1,5 +1,12 @@
 # Development
 
+All commands are run from the repository root (the folder with
+`pyproject.toml`):
+
+```bash
+cd rag-toolkit
+```
+
 ## Environment
 
 The project is managed with [uv](https://docs.astral.sh/uv/).
@@ -8,17 +15,24 @@ The project is managed with [uv](https://docs.astral.sh/uv/).
 uv sync
 ```
 
-The default sync installs runtime dependencies plus the `dev` and `docs`
-dependency groups defined in `pyproject.toml`.
+`uv sync` installs the runtime dependencies plus the default `dev` group defined
+in `pyproject.toml`. The `docs` group (which provides `mkdocstrings`) is **not**
+part of the default sync and must be requested explicitly:
+
+```bash
+uv sync --group dev      # explicit dev tooling (already part of uv sync)
+uv sync --group docs     # add mkdocstrings for the documentation site
+```
 
 ## Documentation
 
 Build and preview the documentation locally with mkdocs-material and
-mkdocstrings:
+mkdocstrings. Pass `--group docs` so the `mkdocstrings` plugin is available:
 
 ```bash
-uv run mkdocs serve     # http://127.0.0.1:8000/
-uv run mkdocs build     # static site → site/
+uv sync --group docs
+uv run --group docs mkdocs serve     # http://127.0.0.1:8000/
+uv run --group docs mkdocs build     # static site → site/
 ```
 
 API pages under `docs/api/` are generated from source docstrings. If you

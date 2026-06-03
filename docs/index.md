@@ -39,5 +39,7 @@ print(EvaluationReport(result).summary())
 ## Next steps
 
 - [Getting started](getting-started.md) — install, run, and evaluate.
+- [Running experiments](experiments.md) — reproduce the full benchmark matrix.
+- [Command line interface](cli.md) — every CLI option in one place.
 - [API reference](api.md) — every public module documented.
 - [Development](development.md) — building docs and running tests locally.
