@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from experiments.configs.default_matrix import RETRIEVERS, STABILITY_REPEATS
-from experiments.metrics import (
+from rag.evaluation.metrics import (
     aggregate_retrieval_metrics,
     bootstrap_ci,
     coefficient_of_variation,
@@ -87,7 +87,10 @@ class StabilitySuite(Suite):
 
                 # Aggregate metrics.
                 cv = coefficient_of_variation(per_repeat_recall)
-                lo, hi = bootstrap_ci(per_repeat_recall, n_boot=200) if per_repeat_recall else (0.0, 0.0)
+                _, lo, hi = (
+                    bootstrap_ci(per_repeat_recall, n_resamples=200)
+                    if per_repeat_recall else (0.0, 0.0, 0.0)
+                )
 
                 # Mean rank stability (Kendall-style) across repeats.
                 stabilities = []

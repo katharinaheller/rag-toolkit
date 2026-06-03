@@ -13,7 +13,7 @@ from experiments.configs.default_matrix import (
     FUSION_WEIGHT_SWEEP,
     RETRIEVERS_BY_KEY,
 )
-from experiments.metrics import aggregate_retrieval_metrics
+from rag.evaluation.metrics import aggregate_retrieval_metrics
 from experiments.storage import JsonlWriter, write_csv
 from experiments.suites._shared import (
     gold_lookup_chunks,

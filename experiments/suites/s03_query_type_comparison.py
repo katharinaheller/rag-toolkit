@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 from experiments.configs.default_matrix import RETRIEVERS
 from experiments.core.types import QUERY_TYPES
-from experiments.metrics import aggregate_retrieval_metrics
+from rag.evaluation.metrics import aggregate_retrieval_metrics
 from experiments.storage import JsonlWriter, write_csv
 from experiments.suites._shared import (
     gold_lookup_chunks,

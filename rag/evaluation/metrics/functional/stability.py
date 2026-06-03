@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import List, Tuple
 
 
 def std_dev(values: List[float]) -> float:
@@ -68,28 +68,3 @@ def rank_stability(
             score = (len(sets[i] & sets[j]) / len(union)) if union else 0.0
             scores.append(score)
     return sum(scores) / len(scores) if scores else 1.0
-
-
-def paired_difference_test(
-    a: List[float], b: List[float], n_resamples: int = 1000, seed: int = 0
-) -> Dict[str, float]:
-    """Permutation test for the mean difference of paired samples.
-
-    Returns the observed difference and a two-sided p-value.
-    """
-    if len(a) != len(b) or not a:
-        return {"observed_diff": 0.0, "p_value": 1.0, "n": len(a)}
-    diffs = [x - y for x, y in zip(a, b)]
-    observed = sum(diffs) / len(diffs)
-    if observed == 0:
-        return {"observed_diff": 0.0, "p_value": 1.0, "n": len(a)}
-
-    rng = random.Random(seed)
-    n_extreme = 0
-    for _ in range(n_resamples):
-        signs = [1 if rng.random() < 0.5 else -1 for _ in diffs]
-        m = sum(s * d for s, d in zip(signs, diffs)) / len(diffs)
-        if abs(m) >= abs(observed):
-            n_extreme += 1
-    p = (n_extreme + 1) / (n_resamples + 1)
-    return {"observed_diff": observed, "p_value": p, "n": len(a)}

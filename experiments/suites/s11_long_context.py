@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 from experiments.configs.default_matrix import RETRIEVERS_BY_KEY, TOPK_VALUES
 from experiments.core.types import GenerationRecord
-from experiments.metrics import context_overlap, hallucination_score
+from rag.evaluation.metrics import context_overlap, hallucination_score
 from experiments.storage import JsonlWriter, write_csv
 from experiments.suites._shared import (
     gold_lookup_chunks,
@@ -88,9 +88,8 @@ class LongContextSuite(Suite):
                     if not ctx_chunks:
                         continue
                     gen = self.ctx.generator.generate(query.text, ctx_chunks)
-                    ctx_blob = "\n".join(ctx_chunks)
-                    o = context_overlap(gen.answer, ctx_blob)
-                    h = hallucination_score(gen.answer, ctx_blob)
+                    o = context_overlap(gen.answer, ctx_chunks)
+                    h = hallucination_score(gen.answer, ctx_chunks)
                     overlaps.append(o); halluc.append(h)
                     latencies.append(gen.latency_ms)
                     prompt_chars.append(gen.prompt_chars)

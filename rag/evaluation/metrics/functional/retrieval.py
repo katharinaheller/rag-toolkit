@@ -3,6 +3,10 @@
 Each metric takes a ranked list of retrieved chunk ids (or document ids) and
 a gold set, and returns a scalar in [0, 1]. We work with chunk ids when the
 gold labels are chunk-level (the default for queries derived from chunks).
+
+These are the functional, id-level primitives. The prediction-level
+``BaseMetric`` classes in this package build on the same underlying maths
+(e.g. :func:`dcg`) so there is a single implementation of each calculation.
 """
 
 from __future__ import annotations
@@ -43,25 +47,29 @@ def reciprocal_rank(retrieved_ids: List[str], gold_ids: Set[str]) -> float:
     return 0.0
 
 
+def dcg(relevances: Iterable[int]) -> float:
+    """Discounted cumulative gain for a sequence of (binary) relevances.
+
+    ``i + 2`` because ``i`` is 0-indexed; ``log2(1 + 1) = 1`` for rank 1. This
+    is the single DCG implementation shared by :func:`ndcg_at_k` and the
+    prediction-level ``NDCGMetric``.
+    """
+    return sum(rel / math.log2(i + 2) for i, rel in enumerate(relevances))
+
+
 def ndcg_at_k(retrieved_ids: List[str], gold_ids: Set[str], k: int) -> float:
     if not gold_ids or k <= 0:
         return 0.0
     top = retrieved_ids[:k]
-    dcg = sum(
-        (1.0 / math.log2(i + 2)) for i, doc_id in enumerate(top) if doc_id in gold_ids
-    )
+    relevances = [1 if doc_id in gold_ids else 0 for doc_id in top]
     ideal_n = min(len(gold_ids), k)
-    idcg = sum(1.0 / math.log2(i + 2) for i in range(ideal_n))
-    return dcg / idcg if idcg > 0 else 0.0
+    idcg = dcg([1] * ideal_n)
+    return dcg(relevances) / idcg if idcg > 0 else 0.0
 
 
 def mean(values: Iterable[float]) -> float:
     vs = list(values)
     return sum(vs) / len(vs) if vs else 0.0
-
-
-def safe_div(a: float, b: float, default: float = 0.0) -> float:
-    return a / b if b else default
 
 
 def aggregate_retrieval_metrics(

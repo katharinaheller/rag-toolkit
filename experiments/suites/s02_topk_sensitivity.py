@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from experiments.configs.default_matrix import RETRIEVERS, TOPK_VALUES
-from experiments.metrics import aggregate_retrieval_metrics, context_pollution_ratio
+from rag.evaluation.metrics import aggregate_retrieval_metrics, context_pollution_ratio
 from experiments.storage import JsonlWriter, write_csv
 from experiments.suites._shared import (
     gold_lookup_chunks,

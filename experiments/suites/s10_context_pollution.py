@@ -14,7 +14,7 @@ from typing import Any, Dict, List
 from experiments.configs.default_matrix import RETRIEVERS_BY_KEY
 from experiments.configs.settings import SETTINGS
 from experiments.core.types import GenerationRecord
-from experiments.metrics import context_overlap, hallucination_score
+from rag.evaluation.metrics import context_overlap, hallucination_score
 from experiments.storage import JsonlWriter, write_csv
 from experiments.suites._shared import (
     gold_lookup_chunks,
@@ -110,8 +110,8 @@ class ContextPollutionSuite(Suite):
                         chunk_by_id[cid]["text"] for cid in polluted if cid in chunk_by_id
                     ]
                     gen = self.ctx.generator.generate(query.text, context_chunks)
-                    overlap = context_overlap(gen.answer, "\n".join(context_chunks))
-                    halluc = hallucination_score(gen.answer, "\n".join(context_chunks))
+                    overlap = context_overlap(gen.answer, context_chunks)
+                    halluc = hallucination_score(gen.answer, context_chunks)
 
                     rec = GenerationRecord(
                         run_id=self.ctx.run_id, suite=self.key,

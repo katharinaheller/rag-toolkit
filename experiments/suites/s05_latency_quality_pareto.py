@@ -9,8 +9,11 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from experiments.configs.default_matrix import CORPORA, RETRIEVERS, TOPK_VALUES
-from experiments.metrics import aggregate_retrieval_metrics, compute_pareto_front
-from experiments.metrics.pareto import ParetoPoint
+from rag.evaluation.metrics import (
+    ParetoPoint,
+    aggregate_retrieval_metrics,
+    compute_pareto_front,
+)
 from experiments.storage import JsonlWriter, write_csv
 from experiments.suites._shared import (
     gold_lookup_chunks,

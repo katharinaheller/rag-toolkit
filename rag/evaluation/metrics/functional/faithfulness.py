@@ -2,10 +2,9 @@
 
 Without an external judge LLM, we use context-grounded proxies:
 
-* ``context_overlap``    fraction of answer tokens present in the provided context
-* ``hallucination_rate`` 1 − context_overlap, optionally weighted by content-only tokens
-* ``answer_token_f1``    token-F1 against expected answer (when available)
-* ``answer_em``          exact match against expected answer (when available)
+* ``context_overlap``         fraction of answer tokens present in the context
+* ``hallucination_score``     1 − context_overlap
+* ``context_pollution_ratio`` fraction of retrieved chunks not in the gold set
 
 These signals are interpretable and reproducible — preferred over LLM judges
 in a local, CPU-bound setup.
@@ -14,8 +13,7 @@ in a local, CPU-bound setup.
 from __future__ import annotations
 
 import re
-from collections import Counter
-from typing import Iterable, List, Tuple
+from typing import Iterable, List
 
 _TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9\-]+|\d+")
 
@@ -52,30 +50,6 @@ def context_overlap(answer: str, contexts: Iterable[str]) -> float:
 
 def hallucination_score(answer: str, contexts: Iterable[str]) -> float:
     return 1.0 - context_overlap(answer, contexts)
-
-
-def token_f1(pred: str, gold: str) -> float:
-    """Word-overlap F1 (multiset)."""
-    p = _tokenise(pred)
-    g = _tokenise(gold)
-    if not p and not g:
-        return 1.0
-    if not p or not g:
-        return 0.0
-    pc = Counter(p)
-    gc = Counter(g)
-    common = sum((pc & gc).values())
-    if common == 0:
-        return 0.0
-    precision = common / sum(pc.values())
-    recall = common / sum(gc.values())
-    return 2 * precision * recall / (precision + recall)
-
-
-def exact_match(pred: str, gold: str) -> float:
-    def norm(s: str) -> str:
-        return re.sub(r"\s+", " ", (s or "").lower().strip())
-    return 1.0 if norm(pred) == norm(gold) and norm(pred) else 0.0
 
 
 def context_pollution_ratio(

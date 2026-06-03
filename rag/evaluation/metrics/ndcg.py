@@ -9,16 +9,11 @@ Binary relevance.
 
 from __future__ import annotations
 
-import math
 from typing import List, Optional, Set
 
 from rag.evaluation.metrics.base import BaseMetric
+from rag.evaluation.metrics.functional.retrieval import dcg as _dcg
 from rag.evaluation.types import EvaluationPrediction, MetricResult
-
-
-def _dcg(relevances: List[int]) -> float:
-    # i+2 because i is 0-indexed; log2(1+1)=1 for rank 1.
-    return sum(rel / math.log2(i + 2) for i, rel in enumerate(relevances))
 
 
 def _ndcg_for_prediction(pred: EvaluationPrediction, k: Optional[int]) -> float:

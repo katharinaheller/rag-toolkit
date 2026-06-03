@@ -4,6 +4,10 @@ Timeline curves (CPU%, RAM, GPU%, VRAM vs wall clock), GPU utilisation
 heatmaps, and CPU-vs-GPU speedup bars. Every function returns the output path
 on success or ``None`` when matplotlib is unavailable, mirroring the
 conventions in ``experiments.visualisation.plots``.
+
+All figures use the project's constrained-layout factories and the
+clipping-free :func:`save_fig` export, so titles, twin (right) y-axes and
+outside legends are never cut off — including for long GPU names and high DPI.
 """
 
 from __future__ import annotations
@@ -14,8 +18,12 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from experiments.visualisation.style import (
     colour_for_retriever,
+    new_figure,
+    new_subplots,
+    place_outside_legend,
     save_fig,
     setup_matplotlib,
+    wrap_title,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,9 +64,17 @@ def plot_resource_timeline(
 
     ``samples`` rows are :class:`ResourceSample` dicts. Missing axes (e.g. no
     GPU) are simply omitted; the function never raises on partial data.
+
+    Layout robustness
+    -----------------
+    * constrained_layout sizes the axes so the suptitle, the right-hand memory
+      axis label and the outside legend all fit without clipping.
+    * The legend is placed *below* the plot (anchored to the utilisation axis),
+      so curves near the top of the panel never collide with it and the upper
+      plot region is fully visible.
+    * The title is wrapped so a long GPU name cannot push text past the edge.
     """
-    plt = _plt()
-    if plt is None or not samples:
+    if _plt() is None or not samples:
         return None
 
     ts = [float(s.get("t_s", 0.0)) for s in samples]
@@ -77,9 +93,15 @@ def plot_resource_timeline(
     torch_alloc = _col("gpu_torch_allocated_mb")
 
     have_gpu_util = any(v is not None for v in gpu)
-    have_vram = any(v is not None for v in vram) or any(v is not None for v in torch_alloc)
+    have_vram = any(v is not None for v in vram)
+    have_torch_alloc = any(v is not None for v in torch_alloc)
 
-    fig, ax_util = plt.subplots(figsize=(10, 5.5))
+    # A touch taller than wide to leave room for the below-axes legend and an
+    # optionally two-line (wrapped) title.
+    created = new_subplots(figsize=(10.0, 6.2))
+    if created is None:
+        return None
+    fig, ax_util = created
     ax_mem = ax_util.twinx()
 
     # Utilisation axis (percent).
@@ -89,23 +111,34 @@ def plot_resource_timeline(
     ax_util.set_xlabel("Wall-clock time (s)")
     ax_util.set_ylabel("Utilisation (%)")
     ax_util.set_ylim(0, 105)
+    ax_util.margins(x=0.01)
 
-    # Memory axis (MiB).
-    _plot_clean(ax_mem, ts, rss, label="RSS (MiB)", colour="#2ca02c", linestyle="--")
-    if any(v is not None for v in vram):
+    # Memory axis (MiB) on the right twin.
+    _plot_clean(ax_mem, ts, rss, label="RSS (MiB)", colour="#2ca02c",
+                linestyle="--")
+    if have_vram:
         _plot_clean(ax_mem, ts, vram, label="VRAM used (MiB)",
                     colour="#ff7f0e", linestyle="--")
-    elif any(v is not None for v in torch_alloc):
+    elif have_torch_alloc:
         _plot_clean(ax_mem, ts, torch_alloc, label="VRAM alloc (MiB)",
                     colour="#ff7f0e", linestyle="--")
     ax_mem.set_ylabel("Memory (MiB)")
+    # The twin axis owns the right spine; make it visible (global style hides
+    # the right spine, which would otherwise drop the right axis line).
+    ax_mem.spines["right"].set_visible(True)
+    ax_mem.spines["top"].set_visible(False)
+    ax_mem.grid(False)  # avoid double grid from the twin
 
-    # Combined legend.
+    # Combined legend BELOW the axes (never overlaps the upper plot / title).
     lines, labels = ax_util.get_legend_handles_labels()
     l2, lab2 = ax_mem.get_legend_handles_labels()
-    ax_util.legend(lines + l2, labels + lab2, loc="upper right", ncol=2, fontsize=8)
+    all_lines = lines + l2
+    all_labels = labels + lab2
+    place_outside_legend(ax_util, all_lines, all_labels,
+                         ncol=min(4, max(1, len(all_labels))))
 
-    ax_util.set_title(title)
+    ax_util.set_title(wrap_title(title, width=58))
+
     save_fig(fig, out_path)
     return out_path
 
@@ -121,7 +154,7 @@ def _plot_clean(ax, xs, ys, label, colour, linestyle="-") -> None:
         pair_y.append(y)
     if pair_x:
         ax.plot(pair_x, pair_y, label=label, color=colour,
-                linewidth=1.8, linestyle=linestyle, alpha=0.9)
+                linewidth=1.8, linestyle=linestyle, alpha=0.92)
 
 
 # ── GPU utilisation heatmap ─────────────────────────────────────────────────
@@ -154,13 +187,19 @@ def plot_gpu_utilisation_heatmap(
     if not any_gpu:
         return None
 
-    fig, ax = plt.subplots(figsize=(max(7, bins * 0.16), max(3, len(labels) * 0.6)))
+    created = new_subplots(
+        figsize=(max(7.5, bins * 0.18), max(3.4, len(labels) * 0.7 + 1.4))
+    )
+    if created is None:
+        return None
+    fig, ax = created
+
     im = ax.imshow(grid, aspect="auto", cmap="inferno", vmin=0, vmax=100,
                    interpolation="nearest")
     ax.set_yticks(range(len(labels)))
     ax.set_yticklabels(labels)
     ax.set_xlabel(f"Normalised time ({bins} bins)")
-    ax.set_title(title)
+    ax.set_title(wrap_title(title, width=58))
     cbar = fig.colorbar(im, ax=ax, fraction=0.035, pad=0.02)
     cbar.set_label("GPU utilisation (%)")
     save_fig(fig, out_path)
@@ -205,18 +244,27 @@ def plot_speedup_bars(
     labels = [str(r.get(label_field, "?")) for r in rows]
     values = [float(r.get(speedup_field, 0.0)) for r in rows]
 
-    fig, ax = plt.subplots(figsize=(max(6, len(labels) * 0.9), 5))
+    created = new_subplots(figsize=(max(6.5, len(labels) * 0.95), 5.2))
+    if created is None:
+        return None
+    fig, ax = created
+
     colours = ["#2ca02c" if v >= 1.0 else "#d62728" for v in values]
     bars = ax.bar(labels, values, color=colours, alpha=0.85)
     ax.axhline(1.0, color="#444444", linestyle="--", linewidth=1.0,
                label="parity (CPU = GPU)")
+    # Headroom so the value labels above the tallest bar are not clipped.
+    if values:
+        ax.set_ylim(0, max(values) * 1.18 + 0.05)
     for bar, v in zip(bars, values):
         ax.text(bar.get_x() + bar.get_width() / 2, v, f"{v:.2f}×",
                 ha="center", va="bottom", fontsize=8)
     ax.set_ylabel("Speedup factor (CPU time / GPU time)")
-    ax.set_title(title)
-    ax.legend(loc="best", fontsize=8)
-    plt.xticks(rotation=20, ha="right")
+    ax.set_title(wrap_title(title, width=58))
+    place_outside_legend(ax, ncol=1)
+    ax.tick_params(axis="x", rotation=20)
+    for lab in ax.get_xticklabels():
+        lab.set_ha("right")
     save_fig(fig, out_path)
     return out_path
 
@@ -240,14 +288,20 @@ def plot_vram_vs_batchsize(
         by_device.setdefault(str(r.get("device", "?")), []).append((bs, float(vram)))
     if not by_device:
         return None
-    fig, ax = plt.subplots()
+
+    created = new_subplots(figsize=(9.0, 5.6))
+    if created is None:
+        return None
+    fig, ax = created
+
     for device, pts in sorted(by_device.items()):
         pts.sort()
         ax.plot([p[0] for p in pts], [p[1] for p in pts],
-                marker="o", label=device, color=colour_for_device(device), linewidth=2)
+                marker="o", label=device, color=colour_for_device(device),
+                linewidth=2)
     ax.set_xlabel("Batch size")
     ax.set_ylabel("Peak VRAM (MiB)")
-    ax.set_title(title)
-    ax.legend(loc="best")
+    ax.set_title(wrap_title(title, width=58))
+    place_outside_legend(ax, ncol=min(4, len(by_device)))
     save_fig(fig, out_path)
     return out_path

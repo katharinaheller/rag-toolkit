@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from experiments.configs.default_matrix import RETRIEVERS
-from experiments.metrics import pairwise_overlap_matrix
+from rag.evaluation.metrics import pairwise_overlap_matrix
 from experiments.storage import JsonlWriter, write_csv
 from experiments.suites._shared import (
     get_or_build_index,

@@ -21,33 +21,6 @@ def overlap_at_k(ids_a: Sequence[str], ids_b: Sequence[str], k: int) -> float:
     return jaccard(set(ids_a[:k]), set(ids_b[:k]))
 
 
-def kendall_tau_topk(ids_a: Sequence[str], ids_b: Sequence[str], k: int) -> float:
-    """Kendall's tau over the union of top-k. Missing ranks get rank = k+1."""
-    top_a = list(ids_a[:k])
-    top_b = list(ids_b[:k])
-    union = list(set(top_a) | set(top_b))
-    if len(union) < 2:
-        return 0.0
-
-    rank_a = {x: top_a.index(x) if x in top_a else k for x in union}
-    rank_b = {x: top_b.index(x) if x in top_b else k for x in union}
-
-    concordant, discordant = 0, 0
-    for i in range(len(union)):
-        for j in range(i + 1, len(union)):
-            xi, xj = union[i], union[j]
-            ai = rank_a[xi] - rank_a[xj]
-            bi = rank_b[xi] - rank_b[xj]
-            if ai == 0 or bi == 0:
-                continue
-            if (ai > 0) == (bi > 0):
-                concordant += 1
-            else:
-                discordant += 1
-    total = concordant + discordant
-    return (concordant - discordant) / total if total else 0.0
-
-
 def pairwise_overlap_matrix(
     retrieved_per_retriever: Dict[str, Dict[str, List[str]]],
     k: int,

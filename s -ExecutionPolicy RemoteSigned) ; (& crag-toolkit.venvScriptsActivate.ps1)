@@ -1,0 +1,210 @@
+[1mdiff --git a/experiments/metrics/__init__.py b/experiments/metrics/__init__.py[m
+[1mdeleted file mode 100644[m
+[1mindex a25f155..0000000[m
+[1m--- a/experiments/metrics/__init__.py[m
+[1m+++ /dev/null[m
+[36m@@ -1,56 +0,0 @@[m
+[31m-from experiments.metrics.retrieval_metrics import ([m
+[31m-    aggregate_retrieval_metrics,[m
+[31m-    hit_at_k,[m
+[31m-    ndcg_at_k,[m
+[31m-    precision_at_k,[m
+[31m-    recall_at_k,[m
+[31m-    reciprocal_rank,[m
+[31m-    mean,[m
+[31m-)[m
+[31m-from experiments.metrics.overlap_metrics import ([m
+[31m-    jaccard,[m
+[31m-    kendall_tau_topk,[m
+[31m-    overlap_at_k,[m
+[31m-    pairwise_overlap_matrix,[m
+[31m-)[m
+[31m-from experiments.metrics.stability_metrics import ([m
+[31m-    bootstrap_ci,[m
+[31m-    coefficient_of_variation,[m
+[31m-    paired_difference_test,[m
+[31m-    rank_stability,[m
+[31m-    std_dev,[m
+[31m-)[m
+[31m-from experiments.metrics.faithfulness_metrics import ([m
+[31m-    context_overlap,[m
+[31m-    context_pollution_ratio,[m
+[31m-    exact_match,[m
+[31m-    hallucination_score,[m
+[31m-    token_f1,[m
+[31m-)[m
+[31m-from experiments.metrics.pareto import ParetoPoint, compute_pareto_front[m
+[31m-[m
+[31m-__all__ = [[m
+[31m-    "ParetoPoint",[m
+[31m-    "aggregate_retrieval_metrics",[m
+[31m-    "bootstrap_ci",[m
+[31m-    "coefficient_of_variation",[m
+[31m-    "compute_pareto_front",[m
+[31m-    "context_overlap",[m
+[31m-    "context_pollution_ratio",[m
+[31m-    "exact_match",[m
+[31m-    "hallucination_score",[m
+[31m-    "hit_at_k",[m
+[31m-    "jaccard",[m
+[31m-    "kendall_tau_topk",[m
+[31m-    "mean",[m
+[31m-    "ndcg_at_k",[m
+[31m-    "overlap_at_k",[m
+[31m-    "paired_difference_test",[m
+[31m-    "pairwise_overlap_matrix",[m
+[31m-    "precision_at_k",[m
+[31m-    "rank_stability",[m
+[31m-    "recall_at_k",[m
+[31m-    "reciprocal_rank",[m
+[31m-    "std_dev",[m
+[31m-    "token_f1",[m
+[31m-][m
+[1mdiff --git a/experiments/metrics/faithfulness_metrics.py b/experiments/metrics/faithfulness_metrics.py[m
+[1mdeleted file mode 100644[m
+[1mindex 154ec39..0000000[m
+[1m--- a/experiments/metrics/faithfulness_metrics.py[m
+[1m+++ /dev/null[m
+[36m@@ -1,89 +0,0 @@[m
+[31m-"""Proxy faithfulness and hallucination signals.[m
+[31m-[m
+[31m-Without an external judge LLM, we use context-grounded proxies:[m
+[31m-[m
+[31m-* ``context_overlap``    fraction of answer tokens present in the provided context[m
+[31m-* ``hallucination_rate`` 1 − context_overlap, optionally weighted by content-only tokens[m
+[31m-* ``answer_token_f1``    token-F1 against expected answer (when available)[m
+[31m-* ``answer_em``          exact match against expected answer (when available)[m
+[31m-[m
+[31m-These signals are interpretable and reproducible — preferred over LLM judges[m
+[31m-in a local, CPU-bound setup.[m
+[31m-"""[m
+[31m-[m
+[31m-from __future__ import annotations[m
+[31m-[m
+[31m-import re[m
+[31m-from collections import Counter[m
+[31m-from typing import Iterable, List, Tuple[m
+[31m-[m
+[31m-_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9\-]+|\d+")[m
+[31m-[m
+[31m-_STOP = frozenset({[m
+[31m-    "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with",[m
+[31m-    "is", "are", "was", "were", "be", "as", "at", "by", "this", "that",[m
+[31m-    "it", "its", "from", "into", "but", "not", "no", "do", "does", "did",[m
+[31m-    "has", "have", "had", "will", "would", "can", "could", "may", "might",[m
+[31m-    "you", "we", "they", "i", "me", "us", "them",[m
+[31m-})[m
+[31m-[m
+[31m-[m
+[31m-def _tokenise(text: str) -> List[str]:[m
+[31m-    return [t.lower() for t in _TOKEN.findall(text or "")][m
+[31m-[m
+[31m-[m
+[31m-def _content_tokens(text: str) -> List[str]:[m
+[31m-    return [t for t in _tokenise(text) if t not in _STOP and len(t) > 2][m
+[31m-[m
+[31m-[m
+[31m-def context_overlap(answer: str, contexts: Iterable[str]) -> float:[m
+[31m-    """Fraction of content tokens in the answer that appear in any context."""[m
+[31m-    ans = _content_tokens(answer)[m
+[31m-    if not ans:[m
+[31m-        return 0.0[m
+[31m-    ctx_tokens = set()[m
+[31m-    for c in contexts:[m
+[31m-        ctx_tokens.update(_content_tokens(c))[m
+[31m-    if not ctx_tokens:[m
+[31m-        return 0.0[m
+[31m-    overlap = sum(1 for t in ans if t in ctx_tokens)[m
+[31m-    return overlap / len(ans)[m
+[31m-[m
+[31m-[m
+[31m-def hallucination_score(answer: str, contexts: Iterable[str]) -> float:[m
+[31m-    return 1.0 - context_overlap(answer, contexts)[m
+[31m-[m
+[31m-[m
+[31m-def token_f1(pred: str, gold: str) -> float:[m
+[31m-    """Word-overlap F1 (multiset)."""[m
+[31m-    p = _tokenise(pred)[m
+[31m-    g = _tokenise(gold)[m
+[31m-    if not p and not g:[m
+[31m-        return 1.0[m
+[31m-    if not p or not g:[m
+[31m-        return 0.0[m
+[31m-    pc = Counter(p)[m
+[31m-    gc = Counter(g)[m
+[31m-    common = sum((pc & gc).values())[m
+[31m-    if common == 0:[m
+[31m-        return 0.0[m
+[31m-    precision = common / sum(pc.values())[m
+[31m-    recall = common / sum(gc.values())[m
+[31m-    return 2 * precision * recall / (precision + recall)[m
+[31m-[m
+[31m-[m
+[31m-def exact_match(pred: str, gold: str) -> float:[m
+[31m-    def norm(s: str) -> str:[m
+[31m-        return re.sub(r"\s+", " ", (s or "").lower().strip())[m
+[31m-    return 1.0 if norm(pred) == norm(gold) and norm(pred) else 0.0[m
+[31m-[m
+[31m-[m
+[31m-def context_pollution_ratio([m
+[31m-    retrieved_chunk_ids: List[str], gold_chunk_ids: Iterable[str][m
+[31m-) -> float:[m
+[31m-    """Fraction of retrieved chunks that are NOT in the gold set."""[m
+[31m-    if not retrieved_chunk_ids:[m
+[31m-        return 0.0[m
+[31m-    gold = set(gold_chunk_ids)[m
+[31m-    polluted = sum(1 for c in retrieved_chunk_ids if c not in gold)[m
+[31m-    return polluted / len(retrieved_chunk_ids)[m
+[1mdiff --git a/experiments/metrics/overlap_metrics.py b/experiments/metrics/overlap_metrics.py[m
+[1mdeleted file mode 100644[m
+[1mindex 3b3dee7..0000000[m
+[1m--- a/experiments/metrics/overlap_metrics.py[m
+[1m+++ /dev/null[m
+[36m@@ -1,75 +0,0 @@[m
+[31m-"""Retrieval-overlap and rank-correlation metrics.[m
+[31m-[m
+[31m-These metrics quantify how much two retrievers agree on which chunks belong[m
+[31m-in the top-k for a query. Low overlap means complementary evidence — the[m
+[31m-empirical justification for hybrid retrieval.[m
+[31m-"""[m
+[31m-[m
+[31m-from __future__ import annotations[m
+[31m-[m
+[31m-from typing import Dict, List, Sequence, Set[m
+[31m-[m
+[31m-[m
+[31m-def jaccard(a: Set[str], b: Set[str]) -> float:[m
+[31m-    if not a and not b:[m
+[31m-        return 1.0[m
+[31m-    union = a | b[m
+[31m-    return len(a & b) / len(union) if union else 0.0[m
+[31m-[m
+[31m-[m
+[31m-def overlap_at_k(ids_a: Sequence[str], ids_b: Sequence[str], k: int) -> float:[m
+[31m-    return jaccard(set(ids_a[:k]), set(ids_b[:k]))[m
+[31m-[m
+[31m-[m
+[31m-def kendall_tau_topk(ids_a: Sequence[str], ids_b: Sequence[str], k: int) -> float:[m
+[31m-    """Kendall's tau over the union of top-k. Missing ranks get rank = k+1."""[m
+[31m-    top_a = list(ids_a[:k])[m
+[31m-    top_b = list(ids_b[:k])[m
+[31m-    union = list(set(top_a) | set(top_b))[m
+[31m-    if len(union) < 2:[m
+[31m-        return 0.0[m
+[31m-[m
+[31m-    rank_a = {x: top_a.index(x) if x in top_a else k for x in union}[m
+[31m-    rank_b = {x: top_b.index(x) if x in top_b else k for x in union}[m
+[31m-[m
+[31m-    concordant, discordant = 0, 0[m
+[31m-    for i in range(len(union)):[m
+[31m-        for j in range(i + 1, len(union)):[m
+[31m-            xi, xj = union[i], union[j][m
+[31m-            ai = rank_a[xi] - rank_a[xj][m
+[31m-            bi = rank_b[xi] - rank_b[xj][m
+[31m-            if ai == 0 or bi == 0:[m
+[31m-                continue[m
+[31m-            if (ai > 0) == (bi > 0):[m
+[31m-                concordant += 1[m
+[31m-            else:[m
+[31m-                discordant += 1[m
+[31m-    total = concordant + disc

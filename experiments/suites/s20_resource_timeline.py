@@ -7,6 +7,14 @@ RSS, VRAM vs wall clock) plus a GPU utilisation heatmap across batch sizes.
 This suite is about *visualising* resource behaviour rather than producing
 headline latency numbers, so it always captures the timeline regardless of
 CUDA availability (CPU% and RSS curves are still informative on a CPU host).
+
+Rendering note
+--------------
+The timeline figures previously clipped their title / right y-axis / legend.
+That is fixed at the visualisation layer: all figures now use a single
+constrained-layout engine and a clipping-free export path (see
+``experiments.visualisation.style``). The suite only has to pass a clean,
+descriptive title; long GPU device names are wrapped automatically.
 """
 
 from __future__ import annotations
@@ -93,10 +101,9 @@ class ResourceTimelineSuite(Suite):
         for device, (bs, samples, label) in per_device_best.items():
             safe = device.replace(":", "-")
             tl_path = self.figure_path(f"timeline_{safe}.png")
-            if plot_resource_timeline(
-                samples, tl_path,
-                title=f"Resource timeline — {label} (batch={bs})",
-            ):
+            # ``label`` may be a long GPU name; the plotter wraps it safely.
+            title = f"Resource timeline — {label} ({spec.key}, batch={bs})"
+            if plot_resource_timeline(samples, tl_path, title=title):
                 figures.append(str(tl_path))
 
         heatmap_path = self.figure_path("gpu_utilisation_heatmap.png")
