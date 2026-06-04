@@ -4,11 +4,11 @@ A local Retrieval-Augmented Generation (RAG) toolkit with clean, testable
 layers for ingestion, embedding, indexing, retrieval, generation, and
 evaluation. It ships three things in one repository:
 
-1. **`rag/`** — an importable, modular Python library. Each layer has a narrow
+1. **`rag/`** is an importable, modular Python library. Each layer has a narrow
    contract and can be swapped, tested, and benchmarked independently.
-2. **`experiments/`** — a research framework that runs a matrix of retrieval,
+2. **`experiments/`** is a research framework that runs a matrix of retrieval,
    generation, scaling, and resource benchmarks and produces Markdown reports.
-3. **A JupyterHub platform** — a reproducible, per-user notebook environment
+3. **A JupyterHub platform** is a reproducible, per-user notebook environment
    (JupyterHub + DockerSpawner + Ollama) for interactive exploration.
 
 Generation runs locally via [Ollama](https://ollama.com/); embeddings run
@@ -19,7 +19,7 @@ required at runtime.
 
 | You want to…                                              | Start here                                  |
 |-----------------------------------------------------------|---------------------------------------------|
-| Run experiments / use the `rag` library on your machine   | [Quick start (uv)](#quick-start-uv) — the primary path |
+| Run experiments / use the `rag` library on your machine   | [Quick start (uv)](#quick-start-uv), the primary path |
 | Reproduce the full experiment matrix and reports          | [Running experiments](#running-experiments) |
 | Use the interactive notebook platform                     | [JupyterHub platform (Docker)](#jupyterhub-platform-docker) |
 
@@ -29,7 +29,7 @@ a separate, optional deployment.
 
 ## Run all commands from the repository root
 
-Every command in this README is executed from the repository root — the folder
+Every command in this README is executed from the repository root, the folder
 that contains `pyproject.toml`:
 
 ```bash
@@ -38,16 +38,16 @@ cd rag-toolkit
 
 ## Prerequisites
 
-**For the library and experiments (uv path — recommended):**
+**For the library and experiments (uv path, recommended):**
 
 - Python ≥ 3.12
 - [uv](https://docs.astral.sh/uv/) ≥ 0.5
 - For generation suites: a running [Ollama](https://ollama.com/) instance with a
-  pulled model (optional — retrieval works without it)
+  pulled model (optional, since retrieval works without it)
 - For the gated embedding model `google/embeddinggemma-300m`: a Hugging Face
   access token (see [Embedding models](#embedding-models-and-hugging-face))
 
-**For the JupyterHub platform (Docker path — optional):**
+**For the JupyterHub platform (Docker path, optional):**
 
 - Docker Engine ≥ 24 with Compose v2
 - Linux or WSL2 host with access to `/var/run/docker.sock`
@@ -106,7 +106,7 @@ and output in full; the essentials are below.
 There are two operating modes. The only difference is whether the **generation**
 (LLM) suites run.
 
-### Retrieval mode (default — no Ollama)
+### Retrieval mode (default, no Ollama)
 
 Computes everything that does not need a language model: retrieval quality,
 scaling, latency, embedding comparisons, robustness, stability, and the resource
@@ -121,7 +121,7 @@ uv run experiments/run_all_experiments.py
 
 Generation suites need a local model served by Ollama. Two things must be true:
 Ollama must be reachable, **and** the model must be installed. **Ollama being
-reachable does not mean the model is present** — pull it once:
+reachable does not mean the model is present**, so pull it once:
 
 ```bash
 ollama pull mistral
@@ -150,8 +150,8 @@ uv run experiments/run_all_experiments.py \
 Artefacts are written under `experiments/outputs/`, namespaced by a unique
 `run_id`. The two reports you will read most often:
 
-- `experiments/outputs/reports/<run_id>/REPORT.md` — the full per-run write-up.
-- `experiments/outputs/reports/_aggregate/AGGREGATE_REPORT.md` — a comparison
+- `experiments/outputs/reports/<run_id>/REPORT.md` is the full per-run write-up.
+- `experiments/outputs/reports/_aggregate/AGGREGATE_REPORT.md` is a comparison
   across all runs so far.
 
 To rebuild the reports from stored results without re-running any suite:
@@ -168,8 +168,8 @@ expected console output, runtime guidance, and the reproducibility checklist.
 Even a retrieval-only run downloads embedding models, because the dense and
 hybrid retrievers depend on them:
 
-- `BAAI/bge-m3` — openly available, no token required.
-- `google/embeddinggemma-300m` — **gated**; accept its license on Hugging Face
+- `BAAI/bge-m3` is openly available and requires no token.
+- `google/embeddinggemma-300m` is **gated**; accept its license on Hugging Face
   and authenticate before first use.
 
 Export a read token (create one at <https://huggingface.co/settings/tokens>)
@@ -204,7 +204,7 @@ uv run experiments/run_all_experiments.py --help
 > **Note:** `run_all_experiments.py` writes to `experiments/outputs/`, while the
 > `analysis/` tools read from `results/eval/` and `results/benchmarks/` (produced
 > by the `rag.evaluation` JSONL stores, e.g. from the notebooks). These are
-> different locations — see the [CLI reference](docs/cli.md) for details.
+> different locations. See the [CLI reference](docs/cli.md) for details.
 
 ## The library (`rag` package)
 
@@ -235,13 +235,13 @@ the essentials follow.
 
 Four Compose services orchestrate the platform:
 
-- **`notebook-builder`** — builds and tags `rag-notebook:0.2.0`. Its entrypoint
+- **`notebook-builder`** builds and tags `rag-notebook:0.2.0`. Its entrypoint
   is overridden with `true` so the container exits immediately after the image
   is materialized. `hub` depends on its successful completion.
-- **`ollama`** — runs `ollama/ollama:0.6.8` with a persistent model volume and a
+- **`ollama`** runs `ollama/ollama:0.6.8` with a persistent model volume and a
   healthcheck on `ollama ps`.
-- **`ollama-init`** — waits for the API, pulls `mistral:latest` once, then exits.
-- **`hub`** — runs JupyterHub 4.0 with `DockerSpawner` and `NativeAuthenticator`.
+- **`ollama-init`** waits for the API, pulls `mistral:latest` once, then exits.
+- **`hub`** runs JupyterHub 4.0 with `DockerSpawner` and `NativeAuthenticator`.
   Spawns one notebook container per user on the `rag-toolkit_backend` network.
 
 Notebook containers receive the following mounts:
@@ -279,13 +279,13 @@ redirects to `/lab/tree/shared/notebooks`.
 
 Inside a spawned container:
 
-- **`/home/jovyan/workspace`** — writable, per-user, persistent across restarts.
+- **`/home/jovyan/workspace`** is writable, per-user, and persistent across restarts.
   Place personal notebooks under `workspace/notebooks` and intermediate
   artefacts under `workspace/data/{raw,processed}`. These subdirectories are
   seeded from the image on first spawn and topped up by `init-workspace.sh` on
   every spawn (new subdirectories are created; existing files are never
   overwritten).
-- **`/home/jovyan/shared/notebooks`** and **`/home/jovyan/shared/data`** —
+- **`/home/jovyan/shared/notebooks`** and **`/home/jovyan/shared/data`** are
   read-only reflections of the host-side `./notebooks` and `./data` directories.
   Use them for reference material and copy into `workspace/` before editing.
 
@@ -316,13 +316,13 @@ docker compose up -d hub
 ```
 
 Currently running notebook containers continue to use the previous image; new
-spawns pick up the rebuilt one. `pull_policy = "never"` is set intentionally —
-the image must exist locally.
+spawns pick up the rebuilt one. `pull_policy = "never"` is set intentionally,
+since the image must exist locally.
 
 ### Ollama
 
 The `ollama` service exposes the API at `http://ollama:11434` on the
-`rag-toolkit_backend` network — reachable from notebook containers under the
+`rag-toolkit_backend` network and is reachable from notebook containers under the
 hostname `ollama`. Models live in the `ollama-data` named volume and survive
 container recreation.
 
@@ -418,7 +418,7 @@ paths behind its bind mounts. Make sure `/var/run/docker.sock` is mounted and th
 hub is started through `docker compose up` (not `docker run`).
 
 **DockerSpawner cannot find `rag-notebook:0.2.0`.**
-`pull_policy = "never"` is intentional — the image must exist locally. Run
+`pull_policy = "never"` is intentional, since the image must exist locally. Run
 `docker compose build notebook-builder` and verify with
 `docker images | grep rag-notebook`.
 
@@ -444,7 +444,7 @@ directory with `--eval-dir` / `--benchmark-dir`.
 **Workspace appears empty for a returning user.**
 Each user has an isolated `jupyterhub-work-{username}` named volume. New users see
 the image-seeded skeleton; existing users see whatever they last saved.
-`init-workspace.sh` only creates missing subdirectories — it never overwrites
+`init-workspace.sh` only creates missing subdirectories and never overwrites
 files.
 
 **Ollama model missing (platform).**
